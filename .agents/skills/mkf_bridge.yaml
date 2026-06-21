@@ -1,0 +1,20 @@
+name: mkf-event-ingest
+version: "0.1.0"
+trigger: asset.intake.request
+tool: flake-vault
+description: "Ingests asset events into MkF Redis Stream mkf.events.in"
+script: |
+  import redis, json, uuid
+  from datetime import datetime, timezone
+
+  r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+  event = {
+    "event_id": str(uuid.uuid4()),
+    "type": "asset.intake.request",
+    "source": "hermes-skill:mkf-event-ingest",
+    "venture_id": payload.get("venture_id", "mkf"),
+    "payload": payload,
+    "timestamp": datetime.now(timezone.utc).isoformat()
+  }
+  r.xadd("mkf.events.in", {"data": json.dumps(event)})
+  return {"status": "ingested", "event_id": event["event_id"]}
