@@ -1,0 +1,36 @@
+# ~/.agents/skills/ecochiefs/mkf_bridge.yaml
+name: mkf-event-ingest
+version: 0.1.0
+trigger: asset.intake.request
+tool: flake-vault
+description: Ingests asset events into MkF Redis Stream mkf.events.in
+config:
+  redis_url: "${REDIS_URL:-redis://localhost:6379}"
+  stream_in: mkf.events.in
+  stream_out: mkf.tasks.out
+  seal_required: false        # set true for production TurtleShell gate
+inputs:
+  - name: agent
+    type: string
+    required: true
+    description: "Originating agent name (fox | taurus | scavenger)"
+  - name: event_type
+    type: string
+    required: true
+    description: "Event classification (sensor_check | governance | asset_intake)"
+  - name: payload
+    type: object
+    required: true
+    description: "Raw event payload to be flaked"
+actions:
+  - id: publish_event
+    type: redis_xadd
+    stream: "{{ config.stream_in }}"
+    fields:
+      agent: "{{ inputs.agent }}"
+      event_type: "{{ inputs.event_type }}"
+      payload: "{{ inputs.payload | json }}"
+      timestamp: "{{ now() }}"
+output:
+  stream_id: "{{ publish_event.id }}"
+  status: "ingested"
